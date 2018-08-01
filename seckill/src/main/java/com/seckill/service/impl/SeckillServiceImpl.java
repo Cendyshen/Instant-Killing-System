@@ -2,6 +2,7 @@ package com.seckill.service.impl;
 
 import com.seckill.dao.SecKillDao;
 import com.seckill.dao.SuccessKilledDao;
+import com.seckill.dao.cache.RedisDao;
 import com.seckill.dto.Exposer;
 import com.seckill.dto.SeckillExecution;
 import com.seckill.entity.SecKill;
@@ -38,7 +39,11 @@ public class SeckillServiceImpl implements SeckillService {
 	
 	@Autowired
 	private SuccessKilledDao successKillDao;
-	String slat = "nfenfwfjwoqwn0399&^%&@*";
+	
+	@Autowired
+	private RedisDao redisDao;
+	
+	private final String slat = "nfenfwfjwoqwn0399&^%&@*";
 
 	public List<SecKill> getSeckillList() {
 		// TODO Auto-generated method stub
@@ -51,10 +56,17 @@ public class SeckillServiceImpl implements SeckillService {
 	}
 
 	public Exposer exportSeckillUrl(long seckillId) {
-		// TODO Auto-generated method stub
-		SecKill seckill = seckillDao.queryById(seckillId);
-		if (seckill == null) {
-			return new Exposer(false, seckillId);
+		// 缓存优化 1.访问redis
+		SecKill seckill = redisDao.getSeckill(seckillId);
+		if(seckill == null) {
+			//2.访问数据库
+			seckill = seckillDao.queryById(seckillId);
+			if (seckill == null) {
+				return new Exposer(false, seckillId);
+			}else {
+				//3. 放入Redis
+				redisDao.putSeckill(seckill);
+			}
 		}
 
 		Date startTime = seckill.getStartTime();
@@ -99,7 +111,7 @@ public class SeckillServiceImpl implements SeckillService {
 				// 购买结束，不跟新记录
 				throw new SeckillCloseException("seckill has been closed");
 			} else {
-				; // 记录购买行为
+				 // 记录购买行为
 				int insertCount = successKillDao.insertSuccessKilled(seckillId, userPhone);
 				if (insertCount <= 0) {
 					throw new RepeatKillException("seckill repeated");

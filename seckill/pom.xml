@@ -133,6 +133,7 @@
             <artifactId>spring-test</artifactId>
             <version>4.1.7.RELEASE</version>
         </dependency>
+        
 
         <!-- 5.redis客户端:Jedis-->
         <dependency>
